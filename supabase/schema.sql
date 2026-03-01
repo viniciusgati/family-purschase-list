@@ -111,6 +111,59 @@ CREATE INDEX IF NOT EXISTS idx_expenses_family_date ON expenses(family_id, expen
 CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(family_id, category);
 
 -- ============================================
+-- Funções Helper para evitar Recursão RLS
+-- ============================================
+
+-- Função que retorna os IDs das famílias do usuário atual
+-- SECURITY DEFINER executa com privilégios do owner, ignorando RLS
+CREATE OR REPLACE FUNCTION user_family_ids()
+RETURNS TABLE(family_id UUID) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT m.family_id
+  FROM members m
+  WHERE m.user_id = auth.uid();
+END;
+$$;
+
+-- Função helper para verificar se usuário é membro de uma família
+CREATE OR REPLACE FUNCTION is_user_in_family(p_family_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM members m
+    WHERE m.family_id = p_family_id
+    AND m.user_id = auth.uid()
+  );
+END;
+$$;
+
+-- Função helper para verificar se usuário é admin de uma família
+CREATE OR REPLACE FUNCTION is_user_admin_in_family(p_family_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM members m
+    WHERE m.family_id = p_family_id
+    AND m.user_id = auth.uid()
+    AND m.role = 'admin'
+  );
+END;
+$$;
+
+-- ============================================
 -- Row Level Security (RLS)
 -- ============================================
 
@@ -136,12 +189,12 @@ CREATE POLICY "Usuário pode editar próprio perfil"
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
--- Families: membros podem ver
+-- Families: membros podem ver (usando função helper)
 CREATE POLICY "Membros podem ver sua família"
   ON families FOR SELECT
   TO authenticated
   USING (
-    id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    id IN (SELECT user_family_ids())
   );
 
 CREATE POLICY "Qualquer autenticado pode criar família"
@@ -153,15 +206,15 @@ CREATE POLICY "Admin pode atualizar família"
   ON families FOR UPDATE
   TO authenticated
   USING (
-    id IN (SELECT family_id FROM members WHERE user_id = auth.uid() AND role = 'admin')
+    is_user_admin_in_family(id)
   );
 
--- Members: membros da família podem ver
+-- Members: membros da família podem ver (CORRIGIDO - sem recursão)
 CREATE POLICY "Membros podem ver outros membros"
   ON members FOR SELECT
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
   );
 
 CREATE POLICY "Autenticado pode se adicionar como membro"
@@ -173,7 +226,7 @@ CREATE POLICY "Admin pode remover membros"
   ON members FOR DELETE
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid() AND role = 'admin')
+    is_user_admin_in_family(family_id)
     OR user_id = auth.uid()
   );
 
@@ -182,14 +235,14 @@ CREATE POLICY "Membros podem ver listas da família"
   ON lists FOR SELECT
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
   );
 
 CREATE POLICY "Membros podem criar listas"
   ON lists FOR INSERT
   TO authenticated
   WITH CHECK (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
     AND owner_id = auth.uid()
   );
 
@@ -210,8 +263,7 @@ CREATE POLICY "Membros podem ver itens"
   USING (
     list_id IN (
       SELECT l.id FROM lists l
-      JOIN members m ON m.family_id = l.family_id
-      WHERE m.user_id = auth.uid()
+      WHERE is_user_in_family(l.family_id)
     )
   );
 
@@ -222,8 +274,7 @@ CREATE POLICY "Membros podem criar itens"
     added_by = auth.uid()
     AND list_id IN (
       SELECT l.id FROM lists l
-      JOIN members m ON m.family_id = l.family_id
-      WHERE m.user_id = auth.uid()
+      WHERE is_user_in_family(l.family_id)
     )
   );
 
@@ -233,8 +284,7 @@ CREATE POLICY "Membros podem atualizar itens"
   USING (
     list_id IN (
       SELECT l.id FROM lists l
-      JOIN members m ON m.family_id = l.family_id
-      WHERE m.user_id = auth.uid()
+      WHERE is_user_in_family(l.family_id)
     )
   );
 
@@ -248,21 +298,21 @@ CREATE POLICY "Membros podem ver orçamentos"
   ON budgets FOR SELECT
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
   );
 
 CREATE POLICY "Admin pode criar orçamento"
   ON budgets FOR INSERT
   TO authenticated
   WITH CHECK (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
   );
 
 CREATE POLICY "Admin pode atualizar orçamento"
   ON budgets FOR UPDATE
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid() AND role = 'admin')
+    is_user_admin_in_family(family_id)
   );
 
 -- Budget Categories
@@ -272,8 +322,7 @@ CREATE POLICY "Membros podem ver categorias"
   USING (
     budget_id IN (
       SELECT b.id FROM budgets b
-      JOIN members m ON m.family_id = b.family_id
-      WHERE m.user_id = auth.uid()
+      WHERE is_user_in_family(b.family_id)
     )
   );
 
@@ -283,17 +332,16 @@ CREATE POLICY "Admin pode gerenciar categorias"
   USING (
     budget_id IN (
       SELECT b.id FROM budgets b
-      JOIN members m ON m.family_id = b.family_id
-      WHERE m.user_id = auth.uid()
+      WHERE is_user_admin_in_family(b.family_id)
     )
   );
 
--- Expenses
+-- Expenses: membros podem ver
 CREATE POLICY "Membros podem ver gastos"
   ON expenses FOR SELECT
   TO authenticated
   USING (
-    family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    is_user_in_family(family_id)
   );
 
 CREATE POLICY "Membros podem criar gastos"
@@ -301,7 +349,7 @@ CREATE POLICY "Membros podem criar gastos"
   TO authenticated
   WITH CHECK (
     member_id = auth.uid()
-    AND family_id IN (SELECT family_id FROM members WHERE user_id = auth.uid())
+    AND is_user_in_family(family_id)
   );
 
 CREATE POLICY "Quem criou pode deletar gasto"
