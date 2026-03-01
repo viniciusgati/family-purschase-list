@@ -1,0 +1,6 @@
+<main class="app-container">
+  <router-outlet />
+</main>
+@if (authService.isAuthenticated()) {
+  <app-bottom-nav />
+}

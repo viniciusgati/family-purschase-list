@@ -1,0 +1,61 @@
+[build]
+  command = "npm run build"
+  publish = "dist/family-purchase-list/browser"
+  functions = "dist/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Expose environment variables to JavaScript
+[context.production.environment]
+  SUPABASE_URL = "https://hynitwzzdrmizuaqtvwo.supabase.co"
+
+[context.deploy-preview.environment]
+  SUPABASE_URL = "https://hynitwzzdrmizuaqtvwo.supabase.co"
+
+[context.branch-deploy.environment]
+  SUPABASE_URL = "https://hynitwzzdrmizuaqtvwo.supabase.co"
+
+# Inject environment variables into JavaScript using Netlify's injection
+[[inject]]
+  var = "SUPABASE_URL"
+
+[[inject]]
+  var = "SUPABASE_ANONKEY"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000"
+
+[[headers]]
+  for = "/ngsw-worker.js"
+  [headers.values]
+    Cache-Control = "no-cache"

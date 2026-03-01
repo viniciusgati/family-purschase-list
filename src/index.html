@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>FamilyPurchaseList</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <script>
+      // Inject environment variables from Netlify
+      window.__env__ = {};
+      // Netlify exposes env vars as global JavaScript variables
+      if (typeof SUPABASE_URL !== 'undefined') window.__env__.SUPABASE_URL = SUPABASE_URL;
+      if (typeof SUPABASE_ANONKEY !== 'undefined') window.__env__.SUPABASE_ANONKEY = SUPABASE_ANONKEY;
+      
+      console.log('[index.html] Environment injected:', window.__env__);
+    </script>
+  </head>
+  <body>
+    <app-root></app-root>
+    <noscript>Please enable JavaScript to continue using this application.</noscript>
+  </body>
+</html>

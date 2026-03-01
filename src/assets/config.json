@@ -1,0 +1,36 @@
+{
+  "app": {
+    "name": "Family Purchase List",
+    "version": "1.0.0",
+    "defaultCurrency": "BRL",
+    "maxPhotoSizeMB": 5,
+    "maxItemsPerList": 100,
+    "maxListsPerFamily": 50
+  },
+  "features": {
+    "enableNotifications": false,
+    "enableOfflineMode": true,
+    "enableSharedLists": true,
+    "enablePhotoUpload": true,
+    "enableBudget": true,
+    "enableReports": true
+  },
+  "budget": {
+    "defaultCategories": [
+      "Alimentação",
+      "Casa",
+      "Transporte",
+      "Saúde",
+      "Educação",
+      "Lazer",
+      "Vestuário",
+      "Outros"
+    ]
+  },
+  "ui": {
+    "theme": "light",
+    "primaryColor": "#3F51B5",
+    "accentColor": "#FF4081",
+    "itemsPerPage": 20
+  }
+}
