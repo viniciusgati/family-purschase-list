@@ -283,8 +283,14 @@ export class BudgetOverviewComponent implements OnInit {
 
     const familyId = this.familyService.family()?.id;
     if (familyId) {
-      await this.budgetService.loadCurrentBudget(familyId);
-      await this.expenseService.loadExpenses(familyId, now.getFullYear(), now.getMonth() + 1);
+      try {
+        await this.budgetService.loadCurrentBudget(familyId);
+        await this.expenseService.loadExpenses(familyId, now.getFullYear(), now.getMonth() + 1);
+      } catch (error) {
+        this.snackBar.open('Erro ao carregar dados do orçamento', 'OK', { duration: 3000 });
+      }
+    } else {
+      this.snackBar.open('Você precisa criar ou entrar em uma família primeiro', 'OK', { duration: 3000 });
     }
   }
 
